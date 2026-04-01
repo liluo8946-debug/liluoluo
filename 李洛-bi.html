@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无极特战队 李洛 活动数据</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 50%, #f0f2f5 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 20px;
+            box-shadow: 
+                0 4px 24px rgba(0, 0, 0, 0.04),
+                0 1px 2px rgba(0, 0, 0, 0.02),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.08),
+                0 4px 12px rgba(0, 0, 0, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95);
+        }
+        
+        .glass-header {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .risk-gauge {
+            position: relative;
+            width: 160px;
+            height: 160px;
+        }
+        
+        .risk-gauge svg {
+            transform: rotate(-90deg);
+        }
+        
+        .risk-gauge-bg {
+            fill: none;
+            stroke: rgba(0, 0, 0, 0.06);
+            stroke-width: 10;
+        }
+        
+        .risk-gauge-fill {
+            fill: none;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
+        }
+        
+        .risk-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .tab-btn {
+            position: relative;
+            padding: 6px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.25s ease;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .tab-btn:hover {
+            color: #111827;
+            background: rgba(0, 0, 0, 0.03);
+        }
+        
+        .tab-btn.active {
+            color: #111827;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        
+        .import-tab {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            background: transparent;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            cursor: pointer;
+        }
+        
+        .import-tab:hover {
+            color: #111827;
+        }
+        
+        .import-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .metric-value {
+            background: linear-gradient(180deg, #111827 0%, #374151 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .risk-low { color: #10b981; }
+        .risk-medium { color: #f59e0b; }
+        .risk-high { color: #ef4444; }
+        
+        .chart-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+        }
+        
+        .funnel-bar {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .funnel-bar:hover {
+            opacity: 0.85;
+            transform: scaleX(1.02);
+        }
+        
+        .update-badge {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .number-animate {
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .drop-zone {
+            border: 2px dashed rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.03);
+            transition: all 0.25s ease;
+        }
+        
+        .drop-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08);
+            transform: scale(1.01);
+        }
+        
+        .toast {
+            position: fixed;
+            top: 90px;
+            right: 24px;
+            z-index: 100;
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .data-source-panel {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+        }
+        
+        .data-source-panel.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0 !important;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <!-- Toast -->
+    <div id="toast" class="toast glass-card px-4 py-3 flex items-center gap-3 min-w-[280px]">
+        <div id="toastIcon" class="w-8 h-8 rounded-full flex items-center justify-center text-sm"></div>
+        <div>
+            <div id="toastTitle" class="text-sm font-semibold text-gray-900"></div>
+            <div id="toastMessage" class="text-xs text-gray-500 mt-0.5"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="glass-header fixed top-0 left-0 right-0 z-50">
+        <div class="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-blue-500/20">
+                    无极
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900 tracking-tight">无极特战队 李洛 活动数据</h1>
+                    <p class="text-xs text-gray-500">签到激励活动 · 数据监控与风险预警</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <!-- Time Range Tabs -->
+                <div class="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80">
+                    <button class="tab-btn active" data-range="7" onclick="switchRange(7)">最近 7 天</button>
+                    <button class="tab-btn" data-range="30" onclick="switchRange(30)">最近 30 天</button>
+                </div>
+                
+                <!-- Day/Week Toggle -->
+                <div class="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80">
+                    <button class="tab-btn active" data-granularity="day" onclick="switchGranularity('day')">按日</button>
+                    <button class="tab-btn" data-granularity="week" onclick="switchGranularity('week')">按周</button>
+                </div>
+                
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <span class="w-2 h-2 rounded-full bg-green-500 update-badge"></span>
+                    <span>数据每日更新</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-[1600px] mx-auto px-6 pt-28 pb-10">
+        <!-- Data Source Import Panel -->
+        <div id="dataSourcePanel" class="data-source-panel mb-6">
+            <div class="glass-card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-semibold text-gray-900">数据源导入</h2>
+                            <p class="text-xs text-gray-500">支持 CSV、Excel、远程 URL、Google Sheets 或粘贴表格数据</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="downloadTemplate()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 transition-colors flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            下载示例模板
+                        </button>
+                        <button onclick="useDemoData()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 transition-colors">
+                            使用演示数据
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Import Tabs -->
+                <div class="flex items-center gap-1 border-b border-gray-200/60 mb-4">
+                    <button class="import-tab active" data-import-tab="local" onclick="switchImportTab('local')">本地上传</button>
+                    <button class="import-tab" data-import-tab="url" onclick="switchImportTab('url')">远程 URL</button>
+                    <button class="import-tab" data-import-tab="sheets" onclick="switchImportTab('sheets')">Google Sheets</button>
+                    <button class="import-tab" data-import-tab="paste" onclick="switchImportTab('paste')">粘贴数据</button>
+                </div>
+                
+                <!-- Tab Contents -->
+                <div id="importTabLocal" class="import-tab-content">
+                    <div id="dropZone" class="drop-zone rounded-xl p-8 text-center cursor-pointer">
+                        <input type="file" id="fileInput" class="hidden" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-medium text-gray-700 mb-1">点击或拖拽文件到此处</p>
+                        <p class="text-xs text-gray-400">支持 CSV、Excel (.xlsx)</p>
+                    </div>
+                </div>
+                
+                <div id="importTabUrl" class="import-tab-content hidden">
+                    <div class="flex gap-3">
+                        <input type="text" id="urlInput" placeholder="https://your-vps.com/data.csv" 
+                            class="flex-1 px-4 py-2.5 rounded-xl bg-white/60 border border-gray-200/60 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
+                        <button onclick="loadFromURL()" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
+                            加载数据
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">提示：远程服务器需要开启 CORS，否则浏览器会拦截请求。</p>
+                </div>
+                
+                <div id="importTabSheets" class="import-tab-content hidden">
+                    <div class="flex gap-3">
+                        <input type="text" id="sheetsInput" placeholder="粘贴 Google Sheets 链接或 Sheet ID" 
+                            class="flex-1 px-4 py-2.5 rounded-xl bg-white/60 border border-gray-200/60 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
+                        <button onclick="loadFromGoogleSheets()" class="px-5 py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors shadow-lg shadow-green-500/20">
+                            导入表格
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">提示：请先将 Google Sheets 设置为「任何人可查看」，然后复制浏览器链接粘贴即可。</p>
+                </div>
+                
+                <div id="importTabPaste" class="import-tab-content hidden">
+                    <textarea id="pasteInput" rows="5" placeholder="从 Excel 或网页表格复制数据，直接粘贴到此处...&#10;格式示例：&#10;日期	签到人数	金币领取	文章数量	风控指数&#10;4/1	12000	56000	150	32" 
+                        class="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200/60 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none font-mono"></textarea>
+                    <div class="flex justify-end mt-3">
+                        <button onclick="loadFromPaste()" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
+                            解析数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Source Status Bar -->
+        <div id="dataStatusBar" class="hidden mb-6">
+            <div class="glass-card px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span class="text-sm text-gray-700">
+                        已加载数据：<span id="dataSourceName" class="font-semibold text-gray-900"></span>
+                        <span class="text-gray-400 mx-2">·</span>
+                        <span id="dataRowCount" class="text-gray-500"></span> 条记录
+                    </span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleImportPanel()" class="text-xs font-medium text-blue-600 hover:text-blue-700">切换数据源</button>
+                    <button onclick="useDemoData()" class="text-xs font-medium text-gray-500 hover:text-gray-700">恢复演示数据</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Metrics Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-6">
+            <!-- 今日签到人数 -->
+            <div class="glass-card p-5">
+                <div class="text-xs font-medium text-gray-500 mb-1">今日签到人数</div>
+                <div class="text-2xl font-bold metric-value number-animate" id="todayCheckin">0</div>
+                <div class="flex items-center gap-1 mt-2 text-xs">
+                    <span class="text-green-600 font-medium" id="checkinGrowth">+12.5%</span>
+                    <span class="text-gray-400">较昨日</span>
+                </div>
+            </div>
+            
+            <!-- 累计签到人数 -->
+            <div class="glass-card p-5">
+                <div class="text-xs font-medium text-gray-500 mb-1">累计签到人数</div>
+                <div class="text-2xl font-bold metric-value number-animate" id="totalCheckin">0</div>
+                <div class="flex items-center gap-1 mt-2 text-xs">
+                    <span class="text-green-600 font-medium">+8.3%</span>
+                    <span class="text-gray-400">较上期</span>
+                </div>
+            </div>
+            
+            <!-- 今日金币领取 -->
+            <div class="glass-card p-5">
+                <div class="text-xs font-medium text-gray-500 mb-1">今日金币领取</div>
+                <div class="text-2xl font-bold metric-value number-animate" id="todayCoins">0</div>
+                <div class="flex items-center gap-1 mt-2 text-xs">
+                    <span class="text-green-600 font-medium" id="coinsGrowth">+15.2%</span>
+                    <span class="text-gray-400">较昨日</span>
+                </div>
+            </div>
+            
+            <!-- 累计金币领取 -->
+            <div class="glass-card p-5">
+                <div class="text-xs font-medium text-gray-500 mb-1">累计金币领取</div>
+                <div class="text-2xl font-bold metric-value number-animate" id="totalCoins">0</div>
+                <div class="flex items-center gap-1 mt-2 text-xs">
+                    <span class="text-green-600 font-medium">+6.7%</span>
+                    <span class="text-gray-400">较上期</span>
+                </div>
+            </div>
+            
+            <!-- 七天签到完成率 -->
+            <div class="glass-card p-5">
+                <div class="text-xs font-medium text-gray-500 mb-1">七天签到完成率</div>
+                <div class="text-2xl font-bold metric-value number-animate" id="completionRate">0%</div>
+                <div class="flex items-center gap-1 mt-2 text-xs">
+                    <span class="text-amber-600 font-medium">-2.1%</span>
+                    <span class="text-gray-400">较上期</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Index Section (Priority) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <!-- Risk Gauge Card -->
+            <div class="glass-card p-6 lg:col-span-1 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/10 to-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">风控指数</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">实时风险监控</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700" id="riskLabel">中风险</span>
+                </div>
+                
+                <div class="flex items-center justify-center py-2">
+                    <div class="risk-gauge">
+                        <svg width="160" height="160" viewBox="0 0 160 160">
+                            <circle class="risk-gauge-bg" cx="80" cy="80" r="70"></circle>
+                            <circle class="risk-gauge-fill" id="riskGaugeFill" cx="80" cy="80" r="70" 
+                                stroke-dasharray="439.82" stroke-dashoffset="439.82" stroke="#f59e0b"></circle>
+                        </svg>
+                        <div class="risk-value">
+                            <div class="text-4xl font-bold number-animate risk-medium" id="riskValue">0%</div>
+                            <div class="text-xs text-gray-400 mt-1">当前指数</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-200/60">
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400">异常用户</div>
+                        <div class="text-sm font-semibold text-gray-700 mt-0.5" id="abnormalUsers">3.2%</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400">作弊率</div>
+                        <div class="text-sm font-semibold text-gray-700 mt-0.5" id="cheatRate">1.8%</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400">拦截次数</div>
+                        <div class="text-sm font-semibold text-gray-700 mt-0.5" id="blockCount">128</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Trend Chart -->
+            <div class="glass-card p-6 lg:col-span-2">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">风控指数趋势</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">风险波动监控与预警</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                            <span class="text-gray-500">低风险</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span class="text-gray-500">中风险</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span class="text-gray-500">高风险</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="riskTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+            <!-- 签到人数趋势 -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">签到人数趋势</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">每日活跃用户签到数据</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="checkinTrendChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 金币领取趋势 -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">金币领取趋势</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">每日金币发放总量监控</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="coinsTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <!-- 七天签到转化漏斗 -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">七天签到转化</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">用户签到留存漏斗</p>
+                    </div>
+                </div>
+                <div class="space-y-4 py-2" id="funnelContainer">
+                    <!-- Funnel bars will be injected here -->
+                </div>
+            </div>
+            
+            <!-- 每日文章数量趋势 -->
+            <div class="glass-card p-6 lg:col-span-2">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">每日文章更新数量</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">内容产出与活动关联分析</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="articleTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="glass-card p-4">
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <div class="flex items-center gap-4">
+                    <span>数据更新时间：<span id="updateTime">--</span></span>
+                    <span>统计周期：<span id="statPeriod">最近 7 天</span></span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 font-mono">
+                    <span>file:///Users/liluo/liluo/bi-dashboard/index.html</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        已接入：签到 / 金币 / 风控 / 外部数据
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                        待扩展：留存 / 渠道 / 用户分层
+                    </span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ============================================
+        // 数据生成与状态管理
+        // ============================================
+        let currentRange = 7;
+        let currentGranularity = 'day';
+        let currentImportedData = null;
+        let currentDataSourceName = '演示数据';
+        
+        const charts = {};
+        
+        // 列名映射规则
+        const COLUMN_MAPPINGS = {
+            date: ['date', '日期', '时间', 'day', '日期时间', 'date_time'],
+            checkin: ['checkin', '签到人数', '签到', 'checkin_count', 'check_in', 'check_in_count', 'users'],
+            coins: ['coins', '金币领取', '金币', 'coin', 'coin_count', 'coins_count', 'gold'],
+            articles: ['articles', '文章数量', '文章', 'article', 'article_count', 'posts', 'content'],
+            risk: ['risk', '风控指数', '风险', 'risk_index', 'risk_score', '风控']
+        };
+        
+        // 生成模拟数据
+        function generateData(days) {
+            const dates = [];
+            const checkinData = [];
+            const coinsData = [];
+            const articleData = [];
+            const riskData = [];
+            
+            const now = new Date();
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(d.getDate() - i);
+                dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
+                
+                checkinData.push(Math.floor(8000 + Math.random() * 4000 + (days - i) * 50));
+                coinsData.push(Math.floor(45000 + Math.random() * 15000 + (days - i) * 200));
+                articleData.push(Math.floor(120 + Math.random() * 80));
+                
+                let risk = 25 + Math.random() * 35;
+                if (Math.random() > 0.85) risk = 65 + Math.random() * 25;
+                if (Math.random() > 0.95) risk = 75 + Math.random() * 20;
+                riskData.push(Math.min(100, Math.floor(risk)));
+            }
+            
+            return { dates, checkinData, coinsData, articleData, riskData };
+        }
+        
+        // 按周聚合数据
+        function aggregateByWeek(data) {
+            const weeks = [];
+            const checkin = [];
+            const coins = [];
+            const articles = [];
+            const risks = [];
+            
+            for (let i = 0; i < data.dates.length; i += 7) {
+                const end = Math.min(i + 7, data.dates.length);
+                weeks.push(`W${Math.floor(i / 7) + 1}`);
+                checkin.push(data.checkinData.slice(i, end).reduce((a, b) => a + b, 0));
+                coins.push(data.coinsData.slice(i, end).reduce((a, b) => a + b, 0));
+                articles.push(data.articleData.slice(i, end).reduce((a, b) => a + b, 0));
+                risks.push(Math.floor(data.riskData.slice(i, end).reduce((a, b) => a + b, 0) / (end - i)));
+            }
+            
+            return { dates: weeks, checkinData: checkin, coinsData: coins, articleData: articles, riskData: risks };
+        }
+        
+        function getCurrentData() {
+            let data = currentImportedData || generateData(currentRange);
+            if (currentGranularity === 'week' && data.dates.length >= 14) {
+                data = aggregateByWeek(data);
+            }
+            return data;
+        }
+        
+        // ============================================
+        // Toast 提示
+        // ============================================
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const titleEl = document.getElementById('toastTitle');
+            const msgEl = document.getElementById('toastMessage');
+            
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            
+            if (type === 'success') {
+                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-sm bg-green-100 text-green-600';
+                icon.innerHTML = '✓';
+            } else if (type === 'error') {
+                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-sm bg-red-100 text-red-600';
+                icon.innerHTML = '!';
+            } else {
+                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-sm bg-blue-100 text-blue-600';
+                icon.innerHTML = 'i';
+            }
+            
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        
+        // ============================================
+        // 数据导入面板交互
+        // ============================================
+        function switchImportTab(tab) {
+            document.querySelectorAll('.import-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.importTab === tab);
+            });
+            document.querySelectorAll('.import-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`importTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.remove('hidden');
+        }
+        
+        function toggleImportPanel() {
+            const panel = document.getElementById('dataSourcePanel');
+            panel.classList.toggle('collapsed');
+        }
+        
+        function showDataStatus(name, count) {
+            currentDataSourceName = name;
+            document.getElementById('dataSourceName').textContent = name;
+            document.getElementById('dataRowCount').textContent = count;
+            document.getElementById('dataStatusBar').classList.remove('hidden');
+            document.getElementById('dataSourcePanel').classList.add('collapsed');
+        }
+        
+        function useDemoData() {
+            currentImportedData = null;
+            currentDataSourceName = '演示数据';
+            document.getElementById('dataStatusBar').classList.add('hidden');
+            document.getElementById('dataSourcePanel').classList.remove('collapsed');
+            refreshDashboard();
+            showToast('已恢复', '正在使用演示数据', 'info');
+        }
+        
+        // ============================================
+        // 数据解析核心逻辑
+        // ============================================
+        function findColumnIndex(headers, field) {
+            const possibleNames = COLUMN_MAPPINGS[field];
+            for (let name of possibleNames) {
+                const idx = headers.findIndex(h => 
+                    String(h).toLowerCase().trim() === name.toLowerCase().trim()
+                );
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+        
+        function normalizeData(rows) {
+            if (!rows || rows.length < 2) {
+                throw new Error('数据行数不足，至少需要包含表头和一行数据');
+            }
+            
+            const headers = rows[0].map(h => String(h).trim());
+            const dateIdx = findColumnIndex(headers, 'date');
+            const checkinIdx = findColumnIndex(headers, 'checkin');
+            const coinsIdx = findColumnIndex(headers, 'coins');
+            const articlesIdx = findColumnIndex(headers, 'articles');
+            const riskIdx = findColumnIndex(headers, 'risk');
+            
+            const missing = [];
+            if (dateIdx === -1) missing.push('日期(date)');
+            if (checkinIdx === -1) missing.push('签到人数(checkin)');
+            if (coinsIdx === -1) missing.push('金币领取(coins)');
+            if (articlesIdx === -1) missing.push('文章数量(articles)');
+            if (riskIdx === -1) missing.push('风控指数(risk)');
+            
+            if (missing.length > 0) {
+                throw new Error(`缺少必要列：${missing.join('、')}`);
+            }
+            
+            const dates = [];
+            const checkinData = [];
+            const coinsData = [];
+            const articleData = [];
+            const riskData = [];
+            
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.every(cell => cell === '' || cell == null)) continue;
+                
+                dates.push(String(row[dateIdx] || '').trim());
+                checkinData.push(parseFloat(row[checkinIdx]) || 0);
+                coinsData.push(parseFloat(row[coinsIdx]) || 0);
+                articleData.push(parseFloat(row[articlesIdx]) || 0);
+                riskData.push(Math.min(100, Math.max(0, parseFloat(row[riskIdx]) || 0)));
+            }
+            
+            if (dates.length === 0) {
+                throw new Error('未能解析出有效数据行');
+            }
+            
+            return { dates, checkinData, coinsData, articleData, riskData };
+        }
+        
+        function applyImportedData(data, sourceName) {
+            currentImportedData = data;
+            currentRange = data.dates.length;
+            
+            // 更新范围按钮状态
+            document.querySelectorAll('[data-range]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            refreshDashboard();
+            showDataStatus(sourceName, data.dates.length);
+            showToast('导入成功', `已加载 ${data.dates.length} 条数据`, 'success');
+        }
+        
+        // ============================================
+        // 本地上传（CSV / Excel）
+        // ============================================
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processFile(files[0]);
+        });
+        
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) processFile(e.target.files[0]);
+        }
+        
+        function processFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            if (ext === 'csv') {
+                Papa.parse(file, {
+                    complete: (results) => {
+                        try {
+                            const data = normalizeData(results.data);
+                            applyImportedData(data, file.name);
+                        } catch (err) {
+                            showToast('解析失败', err.message, 'error');
+                        }
+                    },
+                    error: (err) => showToast('读取失败', err.message, 'error')
+                });
+            } else if (ext === 'xlsx' || ext === 'xls') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        const normalized = normalizeData(jsonData);
+                        applyImportedData(normalized, file.name);
+                    } catch (err) {
+                        showToast('解析失败', err.message, 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                showToast('格式不支持', '请上传 CSV 或 Excel (.xlsx) 文件', 'error');
+            }
+        }
+        
+        // ============================================
+        // 远程 URL
+        // ============================================
+        async function loadFromURL() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) {
+                showToast('请输入 URL', '', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                
+                Papa.parse(text, {
+                    complete: (results) => {
+                        try {
+                            const data = normalizeData(results.data);
+                            applyImportedData(data, '远程 URL');
+                        } catch (err) {
+                            showToast('解析失败', err.message, 'error');
+                        }
+                    }
+                });
+            } catch (err) {
+                showToast('请求失败', err.message + '（请检查 CORS 设置）', 'error');
+            }
+        }
+        
+        // ============================================
+        // Google Sheets
+        // ============================================
+        function extractSheetId(input) {
+            // 支持完整链接或纯 ID
+            const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match) return match[1];
+            if (/^[a-zA-Z0-9-_]+$/.test(input) && input.length > 20) return input;
+            return null;
+        }
+        
+        async function loadFromGoogleSheets() {
+            const input = document.getElementById('sheetsInput').value.trim();
+            const sheetId = extractSheetId(input);
+            
+            if (!sheetId) {
+                showToast('链接无效', '请粘贴完整的 Google Sheets 链接或 Sheet ID', 'error');
+                return;
+            }
+            
+            const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+            
+            try {
+                const response = await fetch(csvUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                
+                Papa.parse(text, {
+                    complete: (results) => {
+                        try {
+                            const data = normalizeData(results.data);
+                            applyImportedData(data, 'Google Sheets');
+                        } catch (err) {
+                            showToast('解析失败', err.message, 'error');
+                        }
+                    }
+                });
+            } catch (err) {
+                showToast('请求失败', '无法读取表格，请确认已设置为「任何人可查看」', 'error');
+            }
+        }
+        
+        // ============================================
+        // 粘贴数据
+        // ============================================
+        function loadFromPaste() {
+            const text = document.getElementById('pasteInput').value.trim();
+            if (!text) {
+                showToast('请粘贴数据', '', 'error');
+                return;
+            }
+            
+            try {
+                // 先尝试按制表符分割（Excel 复制默认是制表符）
+                const delimiter = text.includes('\t') ? '\t' : ',';
+                const lines = text.split('\n').filter(line => line.trim());
+                const rows = lines.map(line => line.split(delimiter).map(cell => cell.trim()));
+                
+                const data = normalizeData(rows);
+                applyImportedData(data, '粘贴数据');
+                document.getElementById('pasteInput').value = '';
+            } catch (err) {
+                showToast('解析失败', err.message, 'error');
+            }
+        }
+        
+        // 支持全局粘贴（Ctrl+V 任意位置）
+        document.addEventListener('paste', (e) => {
+            // 如果当前焦点在输入框内，不处理
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            const text = e.clipboardData.getData('text');
+            if (!text || text.length < 10) return;
+            
+            // 简单判断是否是表格数据（包含制表符或换行逗号）
+            if (text.includes('\t') || (text.includes('\n') && text.includes(','))) {
+                switchImportTab('paste');
+                document.getElementById('pasteInput').value = text;
+                showToast('检测到表格数据', '已自动填入粘贴区域，点击「解析数据」即可导入', 'info');
+            }
+        });
+        
+        // ============================================
+        // 下载示例模板
+        // ============================================
+        function downloadTemplate() {
+            const csvContent = `date,checkin,coins,articles,risk
+4/1,12000,56000,150,32
+4/2,11500,54000,142,28
+4/3,13200,61000,165,35
+4/4,12800,59000,158,45
+4/5,14500,65000,172,38
+4/6,13800,62000,160,52
+4/7,15200,68000,180,29`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '无极特战队_数据模板.csv';
+            link.click();
+            showToast('模板已下载', '请按照模板格式填写后导入', 'success');
+        }
+        
+        // ============================================
+        // 数字动画
+        // ============================================
+        function animateNumber(element, target, suffix = '', duration = 800) {
+            const start = parseFloat(element.textContent.replace(/[^0-9.-]/g, '')) || 0;
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                const current = start + (target - start) * easeProgress;
+                
+                if (suffix === '%') {
+                    element.textContent = current.toFixed(1) + suffix;
+                } else {
+                    element.textContent = Math.floor(current).toLocaleString() + suffix;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+        
+        // ============================================
+        // 风控指数仪表盘
+        // ============================================
+        function updateRiskGauge(value) {
+            const circle = document.getElementById('riskGaugeFill');
+            const valueEl = document.getElementById('riskValue');
+            const labelEl = document.getElementById('riskLabel');
+            
+            const circumference = 2 * Math.PI * 70;
+            const offset = circumference - (value / 100) * circumference;
+            
+            let color = '#10b981';
+            let label = '低风险';
+            let labelClass = 'bg-green-100 text-green-700';
+            let valueClass = 'risk-low';
+            
+            if (value > 30 && value <= 70) {
+                color = '#f59e0b';
+                label = '中风险';
+                labelClass = 'bg-amber-100 text-amber-700';
+                valueClass = 'risk-medium';
+            } else if (value > 70) {
+                color = '#ef4444';
+                label = '高风险';
+                labelClass = 'bg-red-100 text-red-700';
+                valueClass = 'risk-high';
+            }
+            
+            circle.style.strokeDashoffset = offset;
+            circle.style.stroke = color;
+            
+            valueEl.className = `text-4xl font-bold number-animate ${valueClass}`;
+            animateNumber(valueEl, value, '%', 1200);
+            
+            labelEl.className = `px-2.5 py-1 rounded-lg text-xs font-semibold ${labelClass}`;
+            labelEl.textContent = label;
+        }
+        
+        // ============================================
+        // 漏斗图渲染
+        // ============================================
+        function renderFunnel(data) {
+            const container = document.getElementById('funnelContainer');
+            const total = data.checkinData[data.checkinData.length - 1] || 12000;
+            
+            const stages = [
+                { label: '第 1 天签到', value: total, color: 'from-blue-500 to-blue-600', width: 100 },
+                { label: '第 3 天签到', value: Math.floor(total * 0.68), color: 'from-blue-400 to-indigo-500', width: 75 },
+                { label: '第 5 天签到', value: Math.floor(total * 0.45), color: 'from-indigo-400 to-violet-500', width: 55 },
+                { label: '第 7 天完成', value: Math.floor(total * 0.28), color: 'from-violet-400 to-purple-500', width: 40 }
+            ];
+            
+            container.innerHTML = stages.map((stage, index) => `
+                <div class="flex items-center gap-3">
+                    <div class="w-20 text-xs text-gray-500 text-right">${stage.label}</div>
+                    <div class="flex-1 h-8 bg-gray-100/60 rounded-lg overflow-hidden relative">
+                        <div class="funnel-bar absolute top-0 left-0 h-full rounded-lg bg-gradient-to-r ${stage.color} flex items-center justify-end pr-2" 
+                             style="width: 0%;" data-width="${stage.width}%">
+                            <span class="text-xs font-medium text-white">${stage.value.toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="w-12 text-xs text-gray-400">${index === 0 ? '100%' : Math.floor((stage.value / total) * 100) + '%'}</div>
+                </div>
+            `).join('');
+            
+            setTimeout(() => {
+                container.querySelectorAll('.funnel-bar').forEach(bar => {
+                    bar.style.width = bar.dataset.width;
+                });
+            }, 100);
+        }
+        
+        // ============================================
+        // Chart.js 配置
+        // ============================================
+        const commonChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#111827',
+                    bodyColor: '#374151',
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 12,
+                    displayColors: false,
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 12 }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9ca3af', font: { size: 11 } },
+                    border: { display: false }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.03)', drawBorder: false },
+                    ticks: { color: '#9ca3af', font: { size: 11 } },
+                    border: { display: false }
+                }
+            }
+        };
+        
+        function initCharts() {
+            const data = getCurrentData();
+            
+            // 签到人数趋势
+            const ctx1 = document.getElementById('checkinTrendChart').getContext('2d');
+            charts.checkin = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: '签到人数',
+                        data: data.checkinData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: (ctx) => {
+                            const canvas = ctx.chart.ctx;
+                            const gradient = canvas.createLinearGradient(0, 0, 0, 220);
+                            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+                            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: commonChartOptions
+            });
+            
+            // 金币领取趋势
+            const ctx2 = document.getElementById('coinsTrendChart').getContext('2d');
+            charts.coins = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: '金币领取',
+                        data: data.coinsData,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: (ctx) => {
+                            const canvas = ctx.chart.ctx;
+                            const gradient = canvas.createLinearGradient(0, 0, 0, 220);
+                            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.15)');
+                            gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#8b5cf6'
+                    }]
+                },
+                options: commonChartOptions
+            });
+            
+            // 风控指数趋势
+            const ctx3 = document.getElementById('riskTrendChart').getContext('2d');
+            charts.risk = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: '风控指数',
+                        data: data.riskData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: (ctx) => {
+                            const canvas = ctx.chart.ctx;
+                            const gradient = canvas.createLinearGradient(0, 0, 0, 220);
+                            gradient.addColorStop(0, 'rgba(245, 158, 11, 0.12)');
+                            gradient.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 2.5,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#f59e0b',
+                        segment: {
+                            borderColor: ctx => {
+                                const val = ctx.p1.parsed.y;
+                                if (val > 70) return '#ef4444';
+                                if (val > 30) return '#f59e0b';
+                                return '#10b981';
+                            }
+                        }
+                    }]
+                },
+                options: {
+                    ...commonChartOptions,
+                    scales: {
+                        ...commonChartOptions.scales,
+                        y: {
+                            ...commonChartOptions.scales.y,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                ...commonChartOptions.scales.y.ticks,
+                                callback: function(value) { return value + '%'; }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 文章数量趋势
+            const ctx4 = document.getElementById('articleTrendChart').getContext('2d');
+            charts.article = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: '文章数量',
+                        data: data.articleData,
+                        borderColor: '#10b981',
+                        backgroundColor: (ctx) => {
+                            const canvas = ctx.chart.ctx;
+                            const gradient = canvas.createLinearGradient(0, 0, 0, 220);
+                            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.12)');
+                            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#10b981'
+                    }]
+                },
+                options: commonChartOptions
+            });
+            
+            updateTopMetrics(data);
+            const currentRisk = data.riskData[data.riskData.length - 1];
+            updateRiskGauge(currentRisk);
+            renderFunnel(data);
+        }
+        
+        function updateTopMetrics(data) {
+            const todayCheckin = data.checkinData[data.checkinData.length - 1];
+            const totalCheckin = data.checkinData.reduce((a, b) => a + b, 0);
+            const todayCoins = data.coinsData[data.coinsData.length - 1];
+            const totalCoins = data.coinsData.reduce((a, b) => a + b, 0);
+            
+            // 计算七天完成率（基于最后一天的签到人数）
+            const completionRate = data.checkinData.length > 0 
+                ? Math.min(100, Math.max(0, (todayCheckin / (totalCheckin / data.checkinData.length)) * 28))
+                : 28.5;
+            
+            // 计算较昨日增长率
+            const checkinGrowth = data.checkinData.length > 1
+                ? ((todayCheckin - data.checkinData[data.checkinData.length - 2]) / data.checkinData[data.checkinData.length - 2] * 100).toFixed(1)
+                : 12.5;
+            const coinsGrowth = data.coinsData.length > 1
+                ? ((todayCoins - data.coinsData[data.coinsData.length - 2]) / data.coinsData[data.coinsData.length - 2] * 100).toFixed(1)
+                : 15.2;
+            
+            document.getElementById('checkinGrowth').textContent = (checkinGrowth >= 0 ? '+' : '') + checkinGrowth + '%';
+            document.getElementById('checkinGrowth').className = `font-medium ${checkinGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            document.getElementById('coinsGrowth').textContent = (coinsGrowth >= 0 ? '+' : '') + coinsGrowth + '%';
+            document.getElementById('coinsGrowth').className = `font-medium ${coinsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            
+            animateNumber(document.getElementById('todayCheckin'), todayCheckin);
+            animateNumber(document.getElementById('totalCheckin'), totalCheckin);
+            animateNumber(document.getElementById('todayCoins'), todayCoins);
+            animateNumber(document.getElementById('totalCoins'), totalCoins);
+            animateNumber(document.getElementById('completionRate'), completionRate, '%');
+            
+            // 更新风控子指标（基于风险数据模拟）
+            const avgRisk = data.riskData.reduce((a, b) => a + b, 0) / data.riskData.length;
+            document.getElementById('abnormalUsers').textContent = (avgRisk * 0.08).toFixed(1) + '%';
+            document.getElementById('cheatRate').textContent = (avgRisk * 0.045).toFixed(1) + '%';
+            document.getElementById('blockCount').textContent = Math.floor(avgRisk * 2.5);
+        }
+        
+        // ============================================
+        // 交互切换
+        // ============================================
+        function switchRange(range) {
+            currentRange = range;
+            document.querySelectorAll('[data-range]').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.range) === range);
+            });
+            document.getElementById('statPeriod').textContent = `最近 ${range} 天`;
+            refreshDashboard();
+        }
+        
+        function switchGranularity(granularity) {
+            currentGranularity = granularity;
+            document.querySelectorAll('[data-granularity]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.granularity === granularity);
+            });
+            refreshDashboard();
+        }
+        
+        function refreshDashboard() {
+            const data = getCurrentData();
+            
+            charts.checkin.data.labels = data.dates;
+            charts.checkin.data.datasets[0].data = data.checkinData;
+            charts.checkin.update('active');
+            
+            charts.coins.data.labels = data.dates;
+            charts.coins.data.datasets[0].data = data.coinsData;
+            charts.coins.update('active');
+            
+            charts.risk.data.labels = data.dates;
+            charts.risk.data.datasets[0].data = data.riskData;
+            charts.risk.update('active');
+            
+            charts.article.data.labels = data.dates;
+            charts.article.data.datasets[0].data = data.articleData;
+            charts.article.update('active');
+            
+            updateTopMetrics(data);
+            const currentRisk = data.riskData[data.riskData.length - 1];
+            updateRiskGauge(currentRisk);
+            renderFunnel(data);
+        }
+        
+        // ============================================
+        // 初始化
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            document.getElementById('updateTime').textContent = 
+                `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} 08:00`;
+            
+            initCharts();
+        });
+    </script>
+</body>
+</html>
